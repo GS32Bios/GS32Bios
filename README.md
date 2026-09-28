@@ -205,7 +205,8 @@ void loop() {
 * `void addSubMenuAction(const String &pageName, const String &label, const String &targetPageName)` — создает пункт-ссылку на странице, по которому пользователь переходит в дочернее подменю по `Enter`.
 
 ### Добавление элементов управления
-* `void addInfo(const String &label, const String &value)` — информационное поле (только для чтения, обычно на странице `Info`).
+* `void addInfo(const String &label, const String &value)` — информационное поле (только для чтения, на странице `Info`).
+* `void addInfoEx(const String &pageName, const String &label, const String &value)` — информационное поле (на любую страницу).
 * `void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true)` — редактируемое текстовое поле.
 * `void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal)` — числовое поле (`int`).
 * `void addUInt8(const String &pageName, const String &label, uint8_t* valPtr, uint8_t minVal, uint8_t maxVal)` — байтовое числовое поле без знака (`uint8_t`).

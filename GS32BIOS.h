@@ -66,6 +66,7 @@ public:
   void addPage(const String &pageName, const String &parentPage = "");
   void addSubMenuAction(const String &pageName, const String &label, const String &targetPageName);
   void addInfo(const String &label, const String &value);
+  void addInfoEx(const String &pageName, const String &label, const String &value);
   void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true);
   void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal);
   void addBool(const String &pageName, const String &label, bool* valPtr);
