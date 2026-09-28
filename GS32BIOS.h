@@ -9,12 +9,27 @@ enum MenuItemType {
   TYPE_INFO,
   TYPE_TEXT,
   TYPE_INT,
+  TYPE_UINT8,
+  TYPE_INT8,
+  TYPE_UINT16,
+  TYPE_INT16,
   TYPE_BOOL,
   TYPE_SELECT,
   TYPE_DYNAMIC_SELECT,
   TYPE_ACTION,
   TYPE_SUBMENU_LINK
 };
+
+enum BIOSKey {
+  KEY_NONE = 0,
+  KEY_ENTER = 10, KEY_ESC = 27, KEY_BACKSPACE = 127,
+  KEY_UP = 256, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
+  KEY_HOME, KEY_END, KEY_PAGE_UP, KEY_PAGE_DOWN,
+  KEY_INSERT, KEY_DELETE,
+  KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6,
+  KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12
+};
+
 
 struct MenuItem {
   String page;
@@ -57,10 +72,19 @@ public:
   void addSelect(const String &pageName, const String &label, int* valPtr, int optionsCount, const char** options);
   void addDynamicSelect(const String &pageName, const String &label, int* valPtr, std::function<std::vector<String>()> fetchOptionsFunc);
   void addAction(const String &pageName, const String &label, std::function<void()> action);
+  void addUInt8(const String& pageName, const String& label,
+                uint8_t* valPtr, uint8_t minVal, uint8_t maxVal);
+  void addInt8(const String& pageName, const String& label,
+              int8_t* valPtr, int8_t minVal, int8_t maxVal);
+  void addUInt16(const String& pageName, const String& label,
+                uint16_t* valPtr, uint16_t minVal, uint16_t maxVal);
+  void addInt16(const String& pageName, const String& label,
+                int16_t* valPtr, int16_t minVal, int16_t maxVal);
 
   void onSave(std::function<void()> callback);
   void onFactoryReset(std::function<void()> callback);
-  void onKeyPress(std::function<void(char, const char*)> callback);
+  void onKeyPress(std::function<void(int, const char*)> keyPressCallback);
+
 
   struct PageNode {
     String name;
@@ -95,7 +119,7 @@ private:
 
   String inputBuffer;
   char originalTextValue[64];
-  int originalIntValue;
+  int32_t originalIntValue;
 
   std::vector<String> activeSubmenuPath;
   int currentNavDepth;
@@ -122,6 +146,7 @@ private:
   void renderMenu(Stream &client);
   void handleInput(Stream &client);
   bool inputLevelCheckEmpty(MenuItem *it, const String &buf);
+  std::vector<size_t> getPageItemIndices(const String& pageName);
 };
 
 #endif

@@ -6,6 +6,8 @@ GS32BIOS bios;
 // Переменные для примера
 char ssidBuffer[32] = "MyHomeWiFi";
 int channelNum = 6;
+uint8_t brightness = 80;
+int16_t temperatureOffset = -5;
 bool dhcpEnabled = true;
 int selectedAuthMode = 0;
 const char* authModes[] = {"Open", "WPA2-PSK", "WPA3-SAE", "WEE"};
@@ -31,10 +33,7 @@ void setup() {
   bios.setHeaderTitle("GS-32 PRO");
   bios.setProductInfo("IoT Controller", "v2.5.1");
 
-  // 2. Настройка темы оформления (6 параметров: bgWork, bgHeader, highlight, tabActive, popupBg, popupHighlight)
-  //bios.setTheme("37;44", "30;47", "30;47", "30;46", "37;40", "30;47");
-
-  // 3. Создание страниц и иерархии (родительские страницы)
+  // 2. Создание страниц и иерархии (родительские страницы)
   bios.addPage("Network");                  // Страница верхнего уровня
   bios.addPage("Settings");                 // Страница верхнего уровня
   bios.addPage("Tools");                    // Страница с действиями и переключением на Shell
@@ -51,6 +50,8 @@ void setup() {
   // Страница: Settings
   bios.addBool("Settings", "Enable MQTT Logs  ", &dhcpEnabled);
   bios.addInt("Settings", "Heartbeat Interval", &channelNum, 1, 60);
+  bios.addUInt8("Settings", "Display Brightness", &brightness, 0, 100);
+  bios.addInt16("Settings", "Temp Offset       ", &temperatureOffset, -40, 40);
   bios.addText("Settings", "Device Hostname   ", ssidBuffer, 32, false);
 
   // Страница: Wi-Fi (внутри Network)
@@ -60,7 +61,6 @@ void setup() {
 
   // Страница: Ethernet (внутри Network)
   bios.addBool("Ethernet", "Use DHCP Client   ", &dhcpEnabled);
-  bios.addInt("Ethernet", "Static IP Octet   ", &channelNum, 1, 255);
 
   // Страница: Tools (Демонстрация disable / enable для Shell)
   bios.addAction("Tools", "Switch to Custom Shell  ", []() {
@@ -80,8 +80,10 @@ void setup() {
     Serial.println("\n[CALLBACK] Factory reset triggered!");
   });
 
-  bios.onKeyPress([](char key, const char* activePage) {
-    if (key == 'h' || key == 'H') {
+  bios.onKeyPress([](int key, const char* activePage) {
+    if (key == KEY_F1) {
+      Serial.printf("\n[F1] Pressed on page: %s\n", activePage);
+    } else if (key == 'h' || key == 'H') {
       Serial.printf("\n[HELP] Pressed 'H' on page: %s\n", activePage);
     }
   });

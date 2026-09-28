@@ -5,27 +5,30 @@
 ![Интерфейс](https://dev.piminoff.ru/img/github/UI-Terminal-blue.svg) ![Платформа](https://dev.piminoff.ru/img/github/Platform-ESP32-orange.svg)
 
 ## Скриншоты
-![ГлавноеОкно](https://dev.piminoff.ru/img/github/GS32Bios/1.png?v1.1)
-![Редактирование](https://dev.piminoff.ru/img/github/GS32Bios/2.png?v1.1)
-![Выбор](https://dev.piminoff.ru/img/github/GS32Bios/3.png?v1.1)
+![ГлавноеОкно](https://dev.piminoff.ru/img/github/GS32Bios/1.png)
+![Редактирование](https://dev.piminoff.ru/img/github/GS32Bios/2.png)
+![Выбор](https://dev.piminoff.ru/img/github/GS32Bios/3.png)
 
 ## ✨ Особенности
 
 *   **Полноценный UI в терминале:** Использование ANSI-последовательностей для отрисовки рамок, цветов и навигации.
 *   **Система вкладок:** Разделение настроек по страницам (например, Info, Wireless, Advanced).
 *   **Иерархические страницы и подменю**: Поддержка вложенных разделов (например, `Network -> Wi-Fi`), управляемых по нажатию клавиши `Enter`.
+*   **Расширенная типизация целых чисел:**
+    *   `TYPE_INT` — стандартные целые числа (`int*`).
+    *   `TYPE_UINT8` / `TYPE_INT8` — безопасная работа с байтовыми переменными (`uint8_t*`, `int8_t*`).
+    *   `TYPE_UINT16` / `TYPE_INT16` — работа с 16-битными переменными (`uint16_t*`, `int16_t*`).
 *   **Типы данных:**
     *   `TYPE_INFO` — вывод статической информации.
     *   `TYPE_TEXT` — редактирование строк с модальным окном ввода.
-    *   `TYPE_INT` — редактирование целых чисел.
     *   `TYPE_BOOL` — переключатели [Enabled/Disabled].
     *   `TYPE_SELECT` — выпадающие списки выбора.
     *   `TYPE_DYNAMIC_SELECT` — Динамические списки, сканируемые «на лету».
     *   `TYPE_ACTION` — кнопки для выполнения функций (Save, Reset, etc).
 *   **Автоматическая страница Info:** Отображение модели чипа, объема Flash, свободной ОЗУ и времени работы (Uptime).
 *   **Гибкий брендинг:** Настройка заголовка шапки, названия продукта и версии.
-*   **Система колбэков:** Легкая интеграция с `Preferences.h` для сохранения настроек.
-*   **Поддержка Esc:** Отмена редактирования или закрытие подменю.
+*   **Система колбэков:** Легкая интеграция с `Preferences.h` для сохранения настроек и перехват специальных клавиш (включая **F1–F12**, стрелки, Home/End и др.).
+*   **Защита от сбоев:** Предотвращение входа на пустые страницы и безопасное отображение диапазонов в формате `(range: -64 .. 64)`.
 
 ## 🚀 Установка
 
@@ -43,6 +46,7 @@
 | **Enter** | Редактирование параметра или выполнение действия |
 | **Esc** | Отмена ввода текста или закрытие списка выбора |
 | **Backspace** | Удаление символа при вводе текста |
+| **F1 – F12** | Специальные функциональные клавиши (доступны в колбэке) |
 
 ## 📖 Быстрый старт
 
@@ -57,6 +61,8 @@ GS32BIOS bios;
 // Переменные для примера
 char ssidBuffer[32] = "MyHomeWiFi";
 int channelNum = 6;
+uint8_t brightness = 80;
+int16_t temperatureOffset = -5;
 bool dhcpEnabled = true;
 int selectedAuthMode = 0;
 const char* authModes[] = {"Open", "WPA2-PSK", "WPA3-SAE", "WEE"};
@@ -82,10 +88,7 @@ void setup() {
   bios.setHeaderTitle("GS-32 PRO");
   bios.setProductInfo("IoT Controller", "v2.5.1");
 
-  // 2. Настройка темы оформления (6 параметров: bgWork, bgHeader, highlight, tabActive, popupBg, popupHighlight)
-  //bios.setTheme("37;44", "30;47", "30;47", "30;46", "37;40", "30;47");
-
-  // 3. Создание страниц и иерархии (родительские страницы)
+  // 2. Создание страниц и иерархии (родительские страницы)
   bios.addPage("Network");                  // Страница верхнего уровня
   bios.addPage("Settings");                 // Страница верхнего уровня
   bios.addPage("Tools");                    // Страница с действиями и переключением на Shell
@@ -102,6 +105,8 @@ void setup() {
   // Страница: Settings
   bios.addBool("Settings", "Enable MQTT Logs  ", &dhcpEnabled);
   bios.addInt("Settings", "Heartbeat Interval", &channelNum, 1, 60);
+  bios.addUInt8("Settings", "Display Brightness", &brightness, 0, 100);
+  bios.addInt16("Settings", "Temp Offset       ", &temperatureOffset, -40, 40);
   bios.addText("Settings", "Device Hostname   ", ssidBuffer, 32, false);
 
   // Страница: Wi-Fi (внутри Network)
@@ -111,7 +116,6 @@ void setup() {
 
   // Страница: Ethernet (внутри Network)
   bios.addBool("Ethernet", "Use DHCP Client   ", &dhcpEnabled);
-  bios.addInt("Ethernet", "Static IP Octet   ", &channelNum, 1, 255);
 
   // Страница: Tools (Демонстрация disable / enable для Shell)
   bios.addAction("Tools", "Switch to Custom Shell  ", []() {
@@ -131,8 +135,10 @@ void setup() {
     Serial.println("\n[CALLBACK] Factory reset triggered!");
   });
 
-  bios.onKeyPress([](char key, const char* activePage) {
-    if (key == 'h' || key == 'H') {
+  bios.onKeyPress([](int key, const char* activePage) {
+    if (key == KEY_F1) {
+      Serial.printf("\n[F1] Pressed on page: %s\n", activePage);
+    } else if (key == 'h' || key == 'H') {
       Serial.printf("\n[HELP] Pressed 'H' on page: %s\n", activePage);
     }
   });
@@ -169,7 +175,6 @@ void loop() {
   // Обязательный вызов обработчика BIOS в штатном режиме
   bios.handle();
 }
-
 ```
 
 ## 🕹 Управление в терминале
@@ -179,7 +184,7 @@ void loop() {
 * **`Enter`**: 
   * Открыть выбранный пункт / войти в подменю (`>>`).
   * Переключить булев параметр (`Enabled/Disabled`).
-  * Открыть модальное окно редактирования текста или числа (`INT`).
+  * Открыть модальное окно редактирования текста или числа (`INT`, `UINT8`, `INT8`, `UINT16`, `INT16`).
   * Подтвердить выбор во всплывающем списке.
 * **`Esc`**: 
   * Закрыть модальное окно / отменить изменения.
@@ -202,7 +207,11 @@ void loop() {
 ### Добавление элементов управления
 * `void addInfo(const String &label, const String &value)` — информационное поле (только для чтения, обычно на странице `Info`).
 * `void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true)` — редактируемое текстовое поле.
-* `void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal)` — числовое поле с модальным вводом и проверкой лимитов.
+* `void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal)` — числовое поле (`int`).
+* `void addUInt8(const String &pageName, const String &label, uint8_t* valPtr, uint8_t minVal, uint8_t maxVal)` — байтовое числовое поле без знака (`uint8_t`).
+* `void addInt8(const String &pageName, const String &label, int8_t* valPtr, int8_t minVal, int8_t maxVal)` — байтовое числовое поле со знаком (`int8_t`).
+* `void addUInt16(const String &pageName, const String &label, uint16_t* valPtr, uint16_t minVal, uint16_t maxVal)` — 16-битное числовое поле без знака (`uint16_t`).
+* `void addInt16(const String &pageName, const String &label, int16_t* valPtr, int16_t minVal, int16_t maxVal)` — 16-битное числовое поле со знаком (`int16_t`).
 * `void addBool(const String &pageName, const String &label, bool* valPtr)` — переключатель состояний (`true / false`).
 * `void addSelect(const String &pageName, const String &label, int* valPtr, int optionsCount, const char** options)` — выпадающий список вариантов.
 * `void addDynamicSelect(const String &pageName, const String &label, int* valPtr, std::function<std::vector<String>()> fetchOptionsFunc)` — динамический список, генерируемый функцией «на лету» (например, для сканирования сетей).
@@ -214,7 +223,7 @@ void loop() {
 * `bool isActive()` — возвращает текущий статус активности BIOS.
 * `void onSave(std::function<void()> callback)` — callback при выборе стандартного действия сохранения.
 * `void onFactoryReset(std::function<void()> callback)` — callback при сбросе к заводским настройкам.
-* `void onKeyPress(std::function<void(char, const char*)> callback)` — перехватчик нажатий клавиш (возвращает символ и имя активной страницы).
+* `void onKeyPress(std::function<void(int, const char*)> callback)` — перехватчик нажатий клавиш (принимает код клавиши `int` и имя активной страницы). Поддерживает константы специальных клавиш (`KEY_F1` – `KEY_F12`, `KEY_UP`, `KEY_ENTER` и т.д.).
 
 ## 🎨 Темы оформления (ANSI цвета)
 
@@ -223,12 +232,12 @@ void loop() {
 * `bgHeader` — фон шапки (`"30;47"` — черный текст на белом фоне).
 * `highlight` — подсветка выбранной строки меню.
 * `tabActive` — цвет активной вкладки в шапке.
-* `popupBg` — фон всплывающего окона
+* `popupBg` — фон всплывающего окна.
 * `popupHighlight` — подсветка пункта в всплывающем окне.
 
 ## 📝 Требования
 *   Плата: **ESP32** (любая версия).
-*   Терминал: Любой с поддержкой **ANSI/VT100** (Putty, TeraTerm, встроенный монитор порта VS Code/PlatformIO). 
+*   Терминал: Любой с поддержкой **ANSI/VT100** (PuTTY, TeraTerm, встроенный монитор порта VS Code/PlatformIO). 
     *   *Примечание: Стандартный монитор порта Arduino IDE не поддерживает ANSI-цвета.*
 
 ## Лицензия
