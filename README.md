@@ -13,7 +13,8 @@
 
 *   **Полноценный UI в терминале:** Использование ANSI-последовательностей для отрисовки рамок, цветов и навигации.
 *   **Система вкладок:** Разделение настроек по страницам (например, Info, Wireless, Advanced).
-*   **Иерархические страницы и подменю**: Поддержка вложенных разделов (например, `Network -> Wi-Fi`), управляемых по нажатию клавиши `Enter`.
+*   **Многоуровневые вложенные подменю с историей навигации:** Полноценный стек переходов (`navHistory`). При возврате по `Esc` курсор и выбранная страница восстанавливаются точно на том пункте, с которого был совершен вход.
+*   **Универсальные события `onChange`:** Поддержка опциональных callback-функций на изменение значения для всех интерактивных элементов (`Bool`, `Select`, `DynamicSelect`, `Text`, `Int`, `UInt8`, `Int8`, `UInt16`, `Int16`). Callback вызывается только при реальном изменении данных.
 *   **Расширенная типизация целых чисел:**
     *   `TYPE_INT` — стандартные целые числа (`int*`).
     *   `TYPE_UINT8` / `TYPE_INT8` — безопасная работа с байтовыми переменными (`uint8_t*`, `int8_t*`).
@@ -41,12 +42,12 @@
 
 | Клавиша | Действие |
 | :--- | :--- |
-| **Стрелки влево/вправо** | Переключение между вкладками (страницами) |
-| **Стрелки вверх/вниз** | Перемещение по пунктам меню |
-| **Enter** | Редактирование параметра или выполнение действия |
-| **Esc** | Отмена ввода текста или закрытие списка выбора |
+| **Стрелки влево/вправо** | Переключение между вкладками (страницами верхнего уровня) |
+| **Стрелки вверх/вниз** | Перемещение по пунктам меню или списку выбора |
+| **Enter** | Редактирование параметра, вход в подменю или подтверждение выбора |
+| **Esc** | Отмена ввода / Закрытие popup / Возврат на предыдущий уровень меню с сохранением позиции курсора |
 | **Backspace** | Удаление символа при вводе текста |
-| **F1 – F12** | Специальные функциональные клавиши (доступны в колбэке) |
+| **F1 – F12** | Специальные функциональные клавиши (доступны в `onKeyPress`) |
 
 ## 📖 Быстрый старт
 
@@ -96,23 +97,40 @@ void setup() {
   // Страницы подменю (указываем родителя вторым параметром)
   bios.addPage("Wi-Fi", "Network");         // Network -> Wi-Fi
   bios.addPage("Ethernet", "Network");      // Network -> Ethernet
+  bios.addPage("STA Config", "Wi-Fi");      // Wi-Fi -> STA Config (глубокая вложенность)
 
-  // 4. Добавление пунктов-ссылок для перехода в подменю по Enter
+  // 3. Добавление пунктов-ссылок для перехода в подменю по Enter
   bios.addSubMenuAction("Network", "Configure Wi-Fi...     ", "Wi-Fi");
   bios.addSubMenuAction("Network", "Configure Ethernet...  ", "Ethernet");
+  bios.addSubMenuAction("Wi-Fi",   "Station (STA) Setup... ", "STA Config");
 
-  // 5. Наполнение пунктов меню по страницам
+  // 4. Наполнение пунктов меню и привязка onChange колбэков
   // Страница: Settings
-  bios.addBool("Settings", "Enable MQTT Logs  ", &dhcpEnabled);
-  bios.addInt("Settings", "Heartbeat Interval", &channelNum, 1, 60);
-  bios.addUInt8("Settings", "Display Brightness", &brightness, 0, 100);
+  bios.addBool("Settings", "Enable MQTT Logs  ", &dhcpEnabled, []() {
+    Serial.printf("[EVENT] MQTT logging is now: %s\n", dhcpEnabled ? "ON" : "OFF");
+  });
+
+  bios.addInt("Settings", "Heartbeat Interval", &channelNum, 1, 60, []() {
+    Serial.printf("[EVENT] Heartbeat interval changed to: %d sec\n", channelNum);
+  });
+
+  bios.addUInt8("Settings", "Display Brightness", &brightness, 0, 100, []() {
+    Serial.printf("[EVENT] Brightness adjusted to: %u%%\n", brightness);
+  });
+
   bios.addInt16("Settings", "Temp Offset       ", &temperatureOffset, -40, 40);
-  bios.addText("Settings", "Device Hostname   ", ssidBuffer, 32, false);
+  bios.addText("Settings", "Device Hostname   ", ssidBuffer, 32, false, []() {
+    Serial.printf("[EVENT] Hostname changed to: %s\n", ssidBuffer);
+  });
 
   // Страница: Wi-Fi (внутри Network)
   bios.addText("Wi-Fi", "SSID Name         ", ssidBuffer, 32, false);
-  bios.addSelect("Wi-Fi", "Security Mode     ", &selectedAuthMode, 4, authModes);
-  bios.addDynamicSelect("Wi-Fi", "Select AP (Scan)  ", &selectedWifiNetwork, scanAvailableNetworks);
+  bios.addSelect("Wi-Fi", "Security Mode     ", &selectedAuthMode, 4, authModes, []() {
+    Serial.printf("[EVENT] Security mode set to: %s\n", authModes[selectedAuthMode]);
+  });
+  bios.addDynamicSelect("Wi-Fi", "Select AP (Scan)  ", &selectedWifiNetwork, scanAvailableNetworks, []() {
+    Serial.printf("[EVENT] Selected scanned AP index: %d\n", selectedWifiNetwork);
+  });
 
   // Страница: Ethernet (внутри Network)
   bios.addBool("Ethernet", "Use DHCP Client   ", &dhcpEnabled);
@@ -126,7 +144,7 @@ void setup() {
     Serial.print("shell> ");
   });
 
-  // 6. Обработчики
+  // 5. Системные обработчики
   bios.onSave([]() {
     Serial.println("\n[CALLBACK] User saved settings! Writing to EEPROM/SPIFFS...");
   });
@@ -187,8 +205,8 @@ void loop() {
   * Открыть модальное окно редактирования текста или числа (`INT`, `UINT8`, `INT8`, `UINT16`, `INT16`).
   * Подтвердить выбор во всплывающем списке.
 * **`Esc`**: 
-  * Закрыть модальное окно / отменить изменения.
-  * Вернуться на уровень выше из подменю.
+  * Закрыть модальное окно / отменить изменения без сохранения.
+  * Вернуться на уровень выше из подменю (с точным сохранением активной позиции родительской страницы).
 
 ## 🛠 Методы API
 
@@ -204,18 +222,21 @@ void loop() {
 * `void addPage(const String &pageName, const String &parentPage = "")` — создает страницу. Если указан `parentPage`, страница становится вложенным подменю.
 * `void addSubMenuAction(const String &pageName, const String &label, const String &targetPageName)` — создает пункт-ссылку на странице, по которому пользователь переходит в дочернее подменю по `Enter`.
 
-### Добавление элементов управления
+### Добавление элементов управления (с поддержкой `onChange`)
+
+Все интерактивные элементы поддерживают опциональный параметр `std::function<void()> onChange = nullptr`. Callback срабатывает только при подтверждении изменения (по нажатию `Enter`).
+
 * `void addInfo(const String &label, const String &value)` — информационное поле (только для чтения, на странице `Info`).
 * `void addInfoEx(const String &pageName, const String &label, const String &value)` — информационное поле (на любую страницу).
-* `void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true)` — редактируемое текстовое поле.
-* `void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal)` — числовое поле (`int`).
-* `void addUInt8(const String &pageName, const String &label, uint8_t* valPtr, uint8_t minVal, uint8_t maxVal)` — байтовое числовое поле без знака (`uint8_t`).
-* `void addInt8(const String &pageName, const String &label, int8_t* valPtr, int8_t minVal, int8_t maxVal)` — байтовое числовое поле со знаком (`int8_t`).
-* `void addUInt16(const String &pageName, const String &label, uint16_t* valPtr, uint16_t minVal, uint16_t maxVal)` — 16-битное числовое поле без знака (`uint16_t`).
-* `void addInt16(const String &pageName, const String &label, int16_t* valPtr, int16_t minVal, int16_t maxVal)` — 16-битное числовое поле со знаком (`int16_t`).
-* `void addBool(const String &pageName, const String &label, bool* valPtr)` — переключатель состояний (`true / false`).
-* `void addSelect(const String &pageName, const String &label, int* valPtr, int optionsCount, const char** options)` — выпадающий список вариантов.
-* `void addDynamicSelect(const String &pageName, const String &label, int* valPtr, std::function<std::vector<String>()> fetchOptionsFunc)` — динамический список, генерируемый функцией «на лету» (например, для сканирования сетей).
+* `void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true, std::function<void()> onChange = nullptr)` — редактируемое текстовое поле.
+* `void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal, std::function<void()> onChange = nullptr)` — числовое поле (`int`).
+* `void addUInt8(const String &pageName, const String &label, uint8_t* valPtr, uint8_t minVal, uint8_t maxVal, std::function<void()> onChange = nullptr)` — байтовое поле без знака (`uint8_t`).
+* `void addInt8(const String &pageName, const String &label, int8_t* valPtr, int8_t minVal, int8_t maxVal, std::function<void()> onChange = nullptr)` — байтовое поле со знаком (`int8_t`).
+* `void addUInt16(const String &pageName, const String &label, uint16_t* valPtr, uint16_t minVal, uint16_t maxVal, std::function<void()> onChange = nullptr)` — 16-битное поле без знака (`uint16_t`).
+* `void addInt16(const String &pageName, const String &label, int16_t* valPtr, int16_t minVal, int16_t maxVal, std::function<void()> onChange = nullptr)` — 16-битное поле со знаком (`int16_t`).
+* `void addBool(const String &pageName, const String &label, bool* valPtr, std::function<void()> onChange = nullptr)` — переключатель состояний (`true / false`).
+* `void addSelect(const String &pageName, const String &label, int* valPtr, int optionsCount, const char** options, std::function<void()> onChange = nullptr)` — выпадающий список вариантов.
+* `void addDynamicSelect(const String &pageName, const String &label, int* valPtr, std::function<std::vector<String>()> fetchOptionsFunc, std::function<void()> onChange = nullptr)` — динамический список вариантов со сканированием на лету.
 * `void addAction(const String &pageName, const String &label, std::function<void()> action)` — кнопка-действие, выполняющая переданную лямбда-функцию.
 
 ### Интеграция с Callbacks
@@ -234,7 +255,7 @@ void loop() {
 * `highlight` — подсветка выбранной строки меню.
 * `tabActive` — цвет активной вкладки в шапке.
 * `popupBg` — фон всплывающего окна.
-* `popupHighlight` — подсветка пункта в всплывающем окне.
+* `popupHighlight` — подсветка пункта во всплывающем окне.
 
 ## 📝 Требования
 *   Плата: **ESP32** (любая версия).

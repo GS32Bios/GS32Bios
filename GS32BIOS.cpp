@@ -1,6 +1,7 @@
 #include "GS32BIOS.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace {
     bool isIntegerItem(MenuItemType type) {
@@ -33,24 +34,19 @@ namespace {
     void writeIntegerValue(const MenuItem & item, int32_t value) {
         switch (item.type) {
         case TYPE_UINT8:
-            *
-            static_cast < uint8_t * > (item.valPtr) = static_cast < uint8_t > (value);
+            * static_cast < uint8_t * > (item.valPtr) = static_cast < uint8_t > (value);
             break;
         case TYPE_INT8:
-            *
-            static_cast < int8_t * > (item.valPtr) = static_cast < int8_t > (value);
+            * static_cast < int8_t * > (item.valPtr) = static_cast < int8_t > (value);
             break;
         case TYPE_UINT16:
-            *
-            static_cast < uint16_t * > (item.valPtr) = static_cast < uint16_t > (value);
+            * static_cast < uint16_t * > (item.valPtr) = static_cast < uint16_t > (value);
             break;
         case TYPE_INT16:
-            *
-            static_cast < int16_t * > (item.valPtr) = static_cast < int16_t > (value);
+            * static_cast < int16_t * > (item.valPtr) = static_cast < int16_t > (value);
             break;
         case TYPE_INT:
-            *
-            static_cast < int * > (item.valPtr) = static_cast < int > (value);
+            * static_cast < int * > (item.valPtr) = static_cast < int > (value);
             break;
         default:
             break;
@@ -58,8 +54,6 @@ namespace {
     }
 
     int parseCsiKey(Stream & client) {
-        // Called after ESC '[' has been consumed. CSI arrows end with A/B/C/D.
-        // Numeric keys such as F5 (15~) end with '~'.
         char seq[12];
         size_t n = 0;
         unsigned long start = millis();
@@ -71,18 +65,12 @@ namespace {
             char c = (char) client.read();
             if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '~') {
                 seq[n] = '\0';
-                if (c == 'A')
-                    return KEY_UP;
-                if (c == 'B')
-                    return KEY_DOWN;
-                if (c == 'C')
-                    return KEY_RIGHT;
-                if (c == 'D')
-                    return KEY_LEFT;
-                if (c == 'H')
-                    return KEY_HOME;
-                if (c == 'F')
-                    return KEY_END;
+                if (c == 'A') return KEY_UP;
+                if (c == 'B') return KEY_DOWN;
+                if (c == 'C') return KEY_RIGHT;
+                if (c == 'D') return KEY_LEFT;
+                if (c == 'H') return KEY_HOME;
+                if (c == 'F') return KEY_END;
                 if (c == '~') {
                     int code = atoi(seq);
                     switch (code) {
@@ -162,20 +150,13 @@ namespace {
             if (!client.available())
                 return KEY_ESC;
             switch (client.read()) {
-            case 'P':
-                return KEY_F1;
-            case 'Q':
-                return KEY_F2;
-            case 'R':
-                return KEY_F3;
-            case 'S':
-                return KEY_F4;
-            case 'H':
-                return KEY_HOME;
-            case 'F':
-                return KEY_END;
-            default:
-                return KEY_NONE;
+            case 'P': return KEY_F1;
+            case 'Q': return KEY_F2;
+            case 'R': return KEY_F3;
+            case 'S': return KEY_F4;
+            case 'H': return KEY_HOME;
+            case 'F': return KEY_END;
+            default:  return KEY_NONE;
             }
         }
         return KEY_ESC;
@@ -226,18 +207,17 @@ void GS32BIOS::disable() {
 void GS32BIOS::setHeaderTitle(const String & title) {
     headerTitle = title;
 }
-void GS32BIOS::setProductInfo(const String & name,
-    const String & version) {
+void GS32BIOS::setProductInfo(const String & name, const String & version) {
     productName = name;
     productVersion = version;
 }
 
 void GS32BIOS::setTheme(const char * bgWork,
     const char * bgHeader,
-        const char * highlight,
-            const char * tabActive,
-                const char * popupBg,
-                    const char * popupHighlight) {
+    const char * highlight,
+    const char * tabActive,
+    const char * popupBg,
+    const char * popupHighlight) {
     theme = {
         bgWork,
         bgHeader,
@@ -248,8 +228,7 @@ void GS32BIOS::setTheme(const char * bgWork,
     };
 }
 
-void GS32BIOS::addPage(const String & pageName,
-    const String & parentPage) {
+void GS32BIOS::addPage(const String & pageName, const String & parentPage) {
     if (pageName == "Info" || pageName == "Exit")
         return;
     for (const auto & p: pages)
@@ -262,9 +241,7 @@ void GS32BIOS::addPage(const String & pageName,
     });
 }
 
-void GS32BIOS::addSubMenuAction(const String & pageName,
-    const String & label,
-        const String & targetPageName) {
+void GS32BIOS::addSubMenuAction(const String & pageName, const String & label, const String & targetPageName) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -273,8 +250,7 @@ void GS32BIOS::addSubMenuAction(const String & pageName,
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addInfo(const String & label,
-    const String & value) {
+void GS32BIOS::addInfo(const String & label, const String & value) {
     char * valStr = new char[64];
     strlcpy(valStr, value.c_str(), 64);
     MenuItem item {};
@@ -287,9 +263,7 @@ void GS32BIOS::addInfo(const String & label,
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addInfoEx(const String & pageName,
-    const String & label,
-        const String & value) {
+void GS32BIOS::addInfoEx(const String & pageName, const String & label, const String & value) {
     char * valStr = new char[64];
     strlcpy(valStr, value.c_str(), 64);
     MenuItem item {};
@@ -302,8 +276,7 @@ void GS32BIOS::addInfoEx(const String & pageName,
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addText(const String & pageName,
-    const String & label, char * valPtr, size_t maxLen, bool allowEmpty) {
+void GS32BIOS::addText(const String & pageName, const String & label, char * valPtr, size_t maxLen, bool allowEmpty, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -311,11 +284,11 @@ void GS32BIOS::addText(const String & pageName,
     item.valPtr = valPtr;
     item.maxLen = maxLen;
     item.allowEmpty = allowEmpty;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addInt(const String & pageName,
-    const String & label, int * valPtr, int minVal, int maxVal) {
+void GS32BIOS::addInt(const String & pageName, const String & label, int * valPtr, int minVal, int maxVal, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -323,11 +296,11 @@ void GS32BIOS::addInt(const String & pageName,
     item.valPtr = valPtr;
     item.minVal = minVal;
     item.maxVal = maxVal;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addUInt8(const String & pageName,
-    const String & label, uint8_t * valPtr, uint8_t minVal, uint8_t maxVal) {
+void GS32BIOS::addUInt8(const String & pageName, const String & label, uint8_t * valPtr, uint8_t minVal, uint8_t maxVal, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -335,11 +308,11 @@ void GS32BIOS::addUInt8(const String & pageName,
     item.valPtr = valPtr;
     item.minVal = minVal;
     item.maxVal = maxVal;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addInt8(const String & pageName,
-    const String & label, int8_t * valPtr, int8_t minVal, int8_t maxVal) {
+void GS32BIOS::addInt8(const String & pageName, const String & label, int8_t * valPtr, int8_t minVal, int8_t maxVal, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -347,11 +320,11 @@ void GS32BIOS::addInt8(const String & pageName,
     item.valPtr = valPtr;
     item.minVal = minVal;
     item.maxVal = maxVal;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addUInt16(const String & pageName,
-    const String & label, uint16_t * valPtr, uint16_t minVal, uint16_t maxVal) {
+void GS32BIOS::addUInt16(const String & pageName, const String & label, uint16_t * valPtr, uint16_t minVal, uint16_t maxVal, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -359,11 +332,11 @@ void GS32BIOS::addUInt16(const String & pageName,
     item.valPtr = valPtr;
     item.minVal = minVal;
     item.maxVal = maxVal;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addInt16(const String & pageName,
-    const String & label, int16_t * valPtr, int16_t minVal, int16_t maxVal) {
+void GS32BIOS::addInt16(const String & pageName, const String & label, int16_t * valPtr, int16_t minVal, int16_t maxVal, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -371,22 +344,21 @@ void GS32BIOS::addInt16(const String & pageName,
     item.valPtr = valPtr;
     item.minVal = minVal;
     item.maxVal = maxVal;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addBool(const String & pageName,
-    const String & label, bool * valPtr) {
+void GS32BIOS::addBool(const String & pageName, const String & label, bool * valPtr, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
     item.type = TYPE_BOOL;
     item.valPtr = valPtr;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addSelect(const String & pageName,
-    const String & label, int * valPtr, int optionsCount,
-        const char ** options) {
+void GS32BIOS::addSelect(const String & pageName, const String & label, int * valPtr, int optionsCount, const char ** options, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -394,22 +366,22 @@ void GS32BIOS::addSelect(const String & pageName,
     item.valPtr = valPtr;
     item.maxOptions = optionsCount;
     item.options = options;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addDynamicSelect(const String & pageName,
-    const String & label, int * valPtr, std:: function < std::vector < String > () > fetchOptionsFunc) {
+void GS32BIOS::addDynamicSelect(const String & pageName, const String & label, int * valPtr, std::function < std::vector < String > () > fetchOptionsFunc, std::function<void()> onChange) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
     item.type = TYPE_DYNAMIC_SELECT;
     item.valPtr = valPtr;
     item.dynamicOptionsFunc = fetchOptionsFunc;
+    item.onChange = onChange;
     menuItems.push_back(item);
 }
 
-void GS32BIOS::addAction(const String & pageName,
-    const String & label, std:: function < void() > action) {
+void GS32BIOS::addAction(const String & pageName, const String & label, std:: function < void() > action) {
     MenuItem item {};
     item.page = pageName;
     item.label = label;
@@ -424,8 +396,7 @@ void GS32BIOS::onSave(std:: function < void() > callback) {
 void GS32BIOS::onFactoryReset(std:: function < void() > callback) {
     resetCallback = callback;
 }
-void GS32BIOS::onKeyPress(std:: function < void(int,
-    const char * ) > callback) {
+void GS32BIOS::onKeyPress(std:: function < void(int, const char * ) > callback) {
     keyPressCallback = callback;
 }
 
@@ -530,15 +501,13 @@ void GS32BIOS::setCursor(Stream & c, int r, int col) {
     c.print(col);
     c.print('H');
 }
-void GS32BIOS::setColors(Stream & c,
-    const char * code) {
+void GS32BIOS::setColors(Stream & c, const char * code) {
     c.print(F("\e["));
     c.print(code);
     c.print('m');
 }
 
-void GS32BIOS::drawRect(Stream & c, int sr, int sc, int h, int w,
-    const char * clr) {
+void GS32BIOS::drawRect(Stream & c, int sr, int sc, int h, int w, const char * clr) {
     setColors(c, clr);
     for (int r = 0; r < h; ++r) {
         setCursor(c, sr + r, sc);
@@ -702,13 +671,21 @@ void GS32BIOS::handleInput(Stream & client) {
             else if (isIntegerItem(it.type))
                 writeIntegerValue(it, originalIntValue);
             isEditing = false;
-        } else if (isSubMenuOpen)
+        } else if (isSubMenuOpen) {
             isSubMenuOpen = false;
-        else if (currentNavDepth > 0) {
+        } else if (currentNavDepth > 0) {
             activeSubmenuPath.pop_back();
             --currentNavDepth;
-            currentPageIdx = 0;
-            updateActiveIndex();
+            if (!navHistory.empty()) {
+                auto prevState = navHistory.back();
+                navHistory.pop_back();
+                currentPageIdx = prevState.currentPageIdx;
+                localActiveIndex = prevState.localActiveIndex;
+                activeItemIndex = prevState.activeItemIndex;
+            } else {
+                currentPageIdx = 0;
+                updateActiveIndex();
+            }
         }
         renderMenu(client);
         return;
@@ -717,18 +694,33 @@ void GS32BIOS::handleInput(Stream & client) {
     if (isEditing) {
         if (key == KEY_ENTER) {
             MenuItem & it = menuItems[activeItemIndex];
+            bool valChanged = false;
+            
             if (isIntegerItem(it.type)) {
                 String text = inputBuffer;
                 text.trim();
                 if (text.length()) {
                     char * end = nullptr;
                     long v = strtol(text.c_str(), & end, 10);
-                    if (end != text.c_str() && * end == '\0' && v >= it.minVal && v <= it.maxVal)
-                        writeIntegerValue(it, (int32_t) v);
+                    if (end != text.c_str() && * end == '\0' && v >= it.minVal && v <= it.maxVal) {
+                        int32_t oldVal = readIntegerValue(it);
+                        if (oldVal != (int32_t)v) {
+                            writeIntegerValue(it, (int32_t) v);
+                            valChanged = true;
+                        }
+                    }
                 }
-            } else if (inputLevelCheckEmpty( & it, inputBuffer) && it.valPtr)
-                strlcpy((char * ) it.valPtr, inputBuffer.c_str(), it.maxLen);
+            } else if (it.type == TYPE_TEXT && inputLevelCheckEmpty(&it, inputBuffer) && it.valPtr) {
+                if (strncmp((char*)it.valPtr, inputBuffer.c_str(), it.maxLen) != 0) {
+                    strlcpy((char * ) it.valPtr, inputBuffer.c_str(), it.maxLen);
+                    valChanged = true;
+                }
+            }
+            
             isEditing = false;
+            if (valChanged && it.onChange) {
+                it.onChange();
+            }
             renderMenu(client);
             return;
         }
@@ -766,8 +758,16 @@ void GS32BIOS::handleInput(Stream & client) {
         else if (key == KEY_LEFT || key == KEY_ESC)
             isSubMenuOpen = false;
         else if (key == KEY_ENTER && item.valPtr) {
-            *(int * ) item.valPtr = subMenuSelectionIndex;
-            isSubMenuOpen = false;
+            int oldVal = * (int * ) item.valPtr;
+            if (oldVal != subMenuSelectionIndex) {
+                *(int * ) item.valPtr = subMenuSelectionIndex;
+                isSubMenuOpen = false;
+                if (item.onChange) {
+                    item.onChange();
+                }
+            } else {
+                isSubMenuOpen = false;
+            }
         }
         renderMenu(client);
         return;
@@ -819,6 +819,9 @@ void GS32BIOS::handleInput(Stream & client) {
             }
         if (!pageExists || !hasItems)
             return;
+
+        navHistory.push_back({currentPageIdx, localActiveIndex, activeItemIndex});
+
         activeSubmenuPath.push_back(currentPage);
         ++currentNavDepth;
         auto children = getCurrentLevelPages();
@@ -833,7 +836,11 @@ void GS32BIOS::handleInput(Stream & client) {
         return;
     }
     if (it.type == TYPE_BOOL && it.valPtr) {
-        *(bool * ) it.valPtr = ! * (bool * ) it.valPtr;
+        bool * val = (bool * ) it.valPtr;
+        *val = !(*val);
+        if (it.onChange) {
+            it.onChange();
+        }
         renderMenu(client);
         return;
     }
@@ -866,7 +873,6 @@ void GS32BIOS::handleInput(Stream & client) {
         it.action();
 }
 
-bool GS32BIOS::inputLevelCheckEmpty(MenuItem * it,
-    const String & buf) {
+bool GS32BIOS::inputLevelCheckEmpty(MenuItem * it, const String & buf) {
     return buf.length() > 0 || it -> allowEmpty;
 }

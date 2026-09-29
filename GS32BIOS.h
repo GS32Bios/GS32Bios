@@ -45,6 +45,13 @@ struct MenuItem {
   size_t maxLen;
   bool allowEmpty;
   String targetPage;
+  std::function<void()> onChange = nullptr;
+};
+
+struct NavState {
+    int currentPageIdx;
+    int localActiveIndex;
+    int activeItemIndex;
 };
 
 class GS32BIOS {
@@ -67,20 +74,20 @@ public:
   void addSubMenuAction(const String &pageName, const String &label, const String &targetPageName);
   void addInfo(const String &label, const String &value);
   void addInfoEx(const String &pageName, const String &label, const String &value);
-  void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true);
-  void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal);
-  void addBool(const String &pageName, const String &label, bool* valPtr);
-  void addSelect(const String &pageName, const String &label, int* valPtr, int optionsCount, const char** options);
-  void addDynamicSelect(const String &pageName, const String &label, int* valPtr, std::function<std::vector<String>()> fetchOptionsFunc);
+  void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true, std::function<void()> onChange = nullptr);
+  void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal, std::function<void()> onChange = nullptr);
+  void addBool(const String &pageName, const String &label, bool* valPtr, std::function<void()> onChange = nullptr);
+  void addSelect(const String &pageName, const String &label, int* valPtr, int optionsCount, const char** options, std::function<void()> onChange = nullptr);
+  void addDynamicSelect(const String &pageName, const String &label, int* valPtr, std::function<std::vector<String>()> fetchOptionsFunc, std::function<void()> onChange = nullptr);
   void addAction(const String &pageName, const String &label, std::function<void()> action);
   void addUInt8(const String& pageName, const String& label,
-                uint8_t* valPtr, uint8_t minVal, uint8_t maxVal);
+                uint8_t* valPtr, uint8_t minVal, uint8_t maxVal, std::function<void()> onChange = nullptr);
   void addInt8(const String& pageName, const String& label,
-              int8_t* valPtr, int8_t minVal, int8_t maxVal);
+              int8_t* valPtr, int8_t minVal, int8_t maxVal, std::function<void()> onChange = nullptr);
   void addUInt16(const String& pageName, const String& label,
-                uint16_t* valPtr, uint16_t minVal, uint16_t maxVal);
+                uint16_t* valPtr, uint16_t minVal, uint16_t maxVal, std::function<void()> onChange = nullptr);
   void addInt16(const String& pageName, const String& label,
-                int16_t* valPtr, int16_t minVal, int16_t maxVal);
+                int16_t* valPtr, int16_t minVal, int16_t maxVal, std::function<void()> onChange = nullptr);
 
   void onSave(std::function<void()> callback);
   void onFactoryReset(std::function<void()> callback);
@@ -125,7 +132,7 @@ private:
   std::vector<String> activeSubmenuPath;
   int currentNavDepth;
   bool _isActive;
-
+  std::vector<NavState> navHistory;
   std::function<void()> saveCallback;
   std::function<void()> resetCallback;
   std::function<void(char, const char*)> keyPressCallback;
