@@ -41,23 +41,40 @@ void setup() {
   // Страницы подменю (указываем родителя вторым параметром)
   bios.addPage("Wi-Fi", "Network");         // Network -> Wi-Fi
   bios.addPage("Ethernet", "Network");      // Network -> Ethernet
+  bios.addPage("STA Config", "Wi-Fi");      // Wi-Fi -> STA Config (глубокая вложенность)
 
-  // 4. Добавление пунктов-ссылок для перехода в подменю по Enter
+  // 3. Добавление пунктов-ссылок для перехода в подменю по Enter
   bios.addSubMenuAction("Network", "Configure Wi-Fi...     ", "Wi-Fi");
   bios.addSubMenuAction("Network", "Configure Ethernet...  ", "Ethernet");
+  bios.addSubMenuAction("Wi-Fi",   "Station (STA) Setup... ", "STA Config");
 
-  // 5. Наполнение пунктов меню по страницам
+  // 4. Наполнение пунктов меню и привязка onChange колбэков
   // Страница: Settings
-  bios.addBool("Settings", "Enable MQTT Logs  ", &dhcpEnabled);
-  bios.addInt("Settings", "Heartbeat Interval", &channelNum, 1, 60);
-  bios.addUInt8("Settings", "Display Brightness", &brightness, 0, 100);
+  bios.addBool("Settings", "Enable MQTT Logs  ", &dhcpEnabled, []() {
+    Serial.printf("[EVENT] MQTT logging is now: %s\n", dhcpEnabled ? "ON" : "OFF");
+  });
+
+  bios.addInt("Settings", "Heartbeat Interval", &channelNum, 1, 60, []() {
+    Serial.printf("[EVENT] Heartbeat interval changed to: %d sec\n", channelNum);
+  });
+
+  bios.addUInt8("Settings", "Display Brightness", &brightness, 0, 100, []() {
+    Serial.printf("[EVENT] Brightness adjusted to: %u%%\n", brightness);
+  });
+
   bios.addInt16("Settings", "Temp Offset       ", &temperatureOffset, -40, 40);
-  bios.addText("Settings", "Device Hostname   ", ssidBuffer, 32, false);
+  bios.addText("Settings", "Device Hostname   ", ssidBuffer, 32, false, []() {
+    Serial.printf("[EVENT] Hostname changed to: %s\n", ssidBuffer);
+  });
 
   // Страница: Wi-Fi (внутри Network)
   bios.addText("Wi-Fi", "SSID Name         ", ssidBuffer, 32, false);
-  bios.addSelect("Wi-Fi", "Security Mode     ", &selectedAuthMode, 4, authModes);
-  bios.addDynamicSelect("Wi-Fi", "Select AP (Scan)  ", &selectedWifiNetwork, scanAvailableNetworks);
+  bios.addSelect("Wi-Fi", "Security Mode     ", &selectedAuthMode, 4, authModes, []() {
+    Serial.printf("[EVENT] Security mode set to: %s\n", authModes[selectedAuthMode]);
+  });
+  bios.addDynamicSelect("Wi-Fi", "Select AP (Scan)  ", &selectedWifiNetwork, scanAvailableNetworks, []() {
+    Serial.printf("[EVENT] Selected scanned AP index: %d\n", selectedWifiNetwork);
+  });
 
   // Страница: Ethernet (внутри Network)
   bios.addBool("Ethernet", "Use DHCP Client   ", &dhcpEnabled);
@@ -71,7 +88,7 @@ void setup() {
     Serial.print("shell> ");
   });
 
-  // 6. Обработчики
+  // 5. Системные обработчики
   bios.onSave([]() {
     Serial.println("\n[CALLBACK] User saved settings! Writing to EEPROM/SPIFFS...");
   });
