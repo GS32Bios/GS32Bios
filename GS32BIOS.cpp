@@ -197,7 +197,6 @@ GS32BIOS::~GS32BIOS() {
 void GS32BIOS::enable() {
     _isActive = true;
     Serial.print(F("\e[2J\e[H"));
-    updateSystemStats();
     renderMenu(Serial);
 }
 void GS32BIOS::disable() {
@@ -272,6 +271,26 @@ void GS32BIOS::addInfoEx(const String & pageName, const String & label, const St
     item.type = TYPE_INFO;
     item.valPtr = valStr;
     item.maxLen = 64;
+    item.allowEmpty = true;
+    menuItems.push_back(item);
+}
+
+void GS32BIOS::addDynamicInfo(const String &label, std::function<String()> fetchInfoFunc) {
+    MenuItem item {};
+    item.page = "Info";
+    item.label = label;
+    item.type = TYPE_DYNAMIC_INFO;
+    item.dynamicInfoFunc = fetchInfoFunc;
+    item.allowEmpty = true;
+    menuItems.push_back(item);
+}
+
+void GS32BIOS::addDynamicInfoEx(const String &pageName, const String &label, std::function<String()> fetchInfoFunc) {
+    MenuItem item {};
+    item.page = pageName;
+    item.label = label;
+    item.type = TYPE_DYNAMIC_INFO;
+    item.dynamicInfoFunc = fetchInfoFunc;
     item.allowEmpty = true;
     menuItems.push_back(item);
 }
@@ -401,9 +420,9 @@ void GS32BIOS::onKeyPress(std:: function < void(int, const char * ) > callback) 
 }
 
 void GS32BIOS::begin() {
-    Serial.println(F("\n=================================================================="));
-    Serial.println(F("\n [!] WARNING: use PuTTY/TeraTerm or another ANSI/VT100 terminal."));
-    Serial.println(F("\n==================================================================\n"));
+    Serial.println(F("\r\n=================================================================="));
+    Serial.println(F(" [!] WARNING: use PuTTY/TeraTerm or another ANSI/VT100 terminal."));
+    Serial.println(F("==================================================================\n"));
     delay(1000);
     snprintf(sys_chip_model, sizeof(sys_chip_model), "%s Rev.%d", ESP.getChipModel(), ESP.getChipRevision());
     snprintf(sys_flash_size, sizeof(sys_flash_size), "%d MB", (int)(ESP.getFlashChipSize() / (1024 * 1024)));
@@ -432,8 +451,29 @@ void GS32BIOS::begin() {
     baseInfo.push_back(createSysInfo("Version", (char * ) productVersion.c_str()));
     baseInfo.push_back(createSysInfo("Core Architecture", sys_chip_model));
     baseInfo.push_back(createSysInfo("Flash Memory Size", sys_flash_size));
-    baseInfo.push_back(createSysInfo("System Free RAM", sys_free_ram));
-    baseInfo.push_back(createSysInfo("System Uptime", sys_uptime));
+
+    MenuItem ramItem {};
+    ramItem.page = "Info";
+    ramItem.label = "System Free RAM";
+    ramItem.type = TYPE_DYNAMIC_INFO;
+    ramItem.dynamicInfoFunc = []() -> String {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d KB", (int)(ESP.getFreeHeap() / 1024));
+        return String(buf);
+    };
+    baseInfo.push_back(ramItem);
+
+    MenuItem uptimeItem {};
+    uptimeItem.page = "Info";
+    uptimeItem.label = "System Uptime";
+    uptimeItem.type = TYPE_DYNAMIC_INFO;
+    uptimeItem.dynamicInfoFunc = []() -> String {
+        unsigned long sec = millis() / 1000;
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d:%02d", (int)(sec / 3600), (int)((sec % 3600) / 60), (int)(sec % 60));
+        return String(buf);
+    };
+    baseInfo.push_back(uptimeItem);
     menuItems.insert(menuItems.begin(), baseInfo.begin(), baseInfo.end());
     enable();
 }
@@ -441,12 +481,6 @@ void GS32BIOS::begin() {
 void GS32BIOS::handle() {
     if (_isActive && Serial.available())
         handleInput(Serial);
-}
-
-void GS32BIOS::updateSystemStats() {
-    snprintf(sys_free_ram, sizeof(sys_free_ram), "%d KB", (int)(ESP.getFreeHeap() / 1024));
-    unsigned long sec = millis() / 1000;
-    snprintf(sys_uptime, sizeof(sys_uptime), "%02d:%02d:%02d", (int)(sec / 3600), (int)((sec % 3600) / 60), (int)(sec % 60));
 }
 
 std::vector < GS32BIOS::PageNode > GS32BIOS::getCurrentLevelPages() {
@@ -572,7 +606,10 @@ void GS32BIOS::renderMenu(Stream & client) {
             char value[44] = "";
             if ((item.type == TYPE_INFO || item.type == TYPE_TEXT) && item.valPtr)
                 snprintf(value, sizeof(value), "%s", (char * ) item.valPtr);
-            else if (isIntegerItem(item.type) && item.valPtr)
+            else if (item.type == TYPE_DYNAMIC_INFO && item.dynamicInfoFunc){ 
+                String dynVal = item.dynamicInfoFunc();
+                snprintf(value, sizeof(value), "%s", dynVal.c_str());
+            } else if (isIntegerItem(item.type) && item.valPtr)
                 snprintf(value, sizeof(value), "%ld", (long) readIntegerValue(item));
             else if (item.type == TYPE_BOOL && item.valPtr)
                 snprintf(value, sizeof(value), "%s", *(bool * ) item.valPtr ? "[Enabled]" : "[Disabled]");

@@ -48,6 +48,14 @@ void setup() {
   bios.addSubMenuAction("Network", "Configure Ethernet...  ", "Ethernet");
   bios.addSubMenuAction("Wi-Fi",   "Station (STA) Setup... ", "STA Config");
 
+  // Значение вычисляется "на лету" при каждом рендере экрана
+  bios.addDynamicInfoEx("Network", "System Uptime",  -> String {
+    uint32_t sec = millis() / 1000;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d", (int)(sec / 3600), (int)((sec % 3600) / 60), (int)(sec % 60));
+    return String(buf);
+  });
+
   // 4. Наполнение пунктов меню и привязка onChange колбэков
   // Страница: Settings
   bios.addBool("Settings", "Enable MQTT Logs  ", &dhcpEnabled, []() {

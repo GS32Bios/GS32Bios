@@ -21,6 +21,7 @@
     *   `TYPE_UINT16` / `TYPE_INT16` — работа с 16-битными переменными (`uint16_t*`, `int16_t*`).
 *   **Типы данных:**
     *   `TYPE_INFO` — вывод статической информации.
+    *   `TYPE_DYNAMIC_INFO` — вывод динамических данных «на лету» через лямбда-функции (аптайм, память, датчики, статус сети).
     *   `TYPE_TEXT` — редактирование строк с модальным окном ввода.
     *   `TYPE_BOOL` — переключатели [Enabled/Disabled].
     *   `TYPE_SELECT` — выпадающие списки выбора.
@@ -103,6 +104,16 @@ void setup() {
   bios.addSubMenuAction("Network", "Configure Wi-Fi...     ", "Wi-Fi");
   bios.addSubMenuAction("Network", "Configure Ethernet...  ", "Ethernet");
   bios.addSubMenuAction("Wi-Fi",   "Station (STA) Setup... ", "STA Config");
+
+  // Значение вычисляется "на лету" при каждом рендере экрана
+
+  bios.addDynamicInfoEx("Network", "System Uptime",  -> String {
+    uint32_t sec = millis() / 1000;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d", (int)(sec / 3600), (int)((sec % 3600) / 60), (int)(sec % 60));
+    return String(buf);
+
+  });
 
   // 4. Наполнение пунктов меню и привязка onChange колбэков
   // Страница: Settings
@@ -228,6 +239,8 @@ void loop() {
 
 * `void addInfo(const String &label, const String &value)` — информационное поле (только для чтения, на странице `Info`).
 * `void addInfoEx(const String &pageName, const String &label, const String &value)` — информационное поле (на любую страницу).
+* `void addDynamicInfo(const String &label, std::function<String()> fetchInfoFunc)` — динамическое информационное поле на странице `Info`. Значение вычисляется через переданную функцию при каждой перерисовке.
+* `void addDynamicInfoEx(const String &pageName, const String &label, std::function<String()> fetchInfoFunc)` — динамическое информационное поле на произвольной странице.
 * `void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true, std::function<void()> onChange = nullptr)` — редактируемое текстовое поле.
 * `void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal, std::function<void()> onChange = nullptr)` — числовое поле (`int`).
 * `void addUInt8(const String &pageName, const String &label, uint8_t* valPtr, uint8_t minVal, uint8_t maxVal, std::function<void()> onChange = nullptr)` — байтовое поле без знака (`uint8_t`).

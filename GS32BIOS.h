@@ -7,6 +7,7 @@
 
 enum MenuItemType {
   TYPE_INFO,
+  TYPE_DYNAMIC_INFO,
   TYPE_TEXT,
   TYPE_INT,
   TYPE_UINT8,
@@ -41,6 +42,7 @@ struct MenuItem {
   int maxOptions;
   const char** options;
   std::function<std::vector<String>()> dynamicOptionsFunc;
+  std::function<String()> dynamicInfoFunc; 
   std::function<void()> action;
   size_t maxLen;
   bool allowEmpty;
@@ -74,6 +76,8 @@ public:
   void addSubMenuAction(const String &pageName, const String &label, const String &targetPageName);
   void addInfo(const String &label, const String &value);
   void addInfoEx(const String &pageName, const String &label, const String &value);
+  void addDynamicInfo(const String &label, std::function<String()> fetchInfoFunc);
+  void addDynamicInfoEx(const String &pageName, const String &label, std::function<String()> fetchInfoFunc);
   void addText(const String &pageName, const String &label, char* valPtr, size_t maxLen, bool allowEmpty = true, std::function<void()> onChange = nullptr);
   void addInt(const String &pageName, const String &label, int* valPtr, int minVal, int maxVal, std::function<void()> onChange = nullptr);
   void addBool(const String &pageName, const String &label, bool* valPtr, std::function<void()> onChange = nullptr);
@@ -139,10 +143,7 @@ private:
 
   char sys_chip_model[32];
   char sys_flash_size[16];
-  char sys_free_ram[16];
-  char sys_uptime[16];
 
-  void updateSystemStats();
   std::vector<PageNode> getCurrentLevelPages();
   void updateActiveIndex();
   void moveActiveItem(int dir);
